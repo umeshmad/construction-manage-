@@ -1,0 +1,9 @@
+node node_modules/next/dist/bin/next dev
+
+create a table of content in note book file when doing the assignment in mathes module
+must add word with refferANCES
+write the deravations scaned it and add it to the document
+interpretation mean comment well with the code  
+
+task 2 part 2 hand written examples 
+part3 4  5 code base questions

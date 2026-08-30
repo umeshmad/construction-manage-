@@ -9,7 +9,7 @@ const initialQuotations = [
 ];
 
 const AdminQuotations = () => {
-  const [quotations, setQuotations] = useState(initialQuotations);
+  const [quotations, _setQuotations] = useState(initialQuotations);
   const [lineItems, setLineItems] = useState([
     { id: 1, desc: 'Initial Architectural Consultation & Site Visit', amount: 1500 },
     { id: 2, desc: 'Drafting - Floor Plans (Ground & First Floor)', amount: 4500 }

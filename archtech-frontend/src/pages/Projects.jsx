@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import Footer from '../components/Footer';
 
-const projects = [
+const initialProjects = [
   { id: 1, title: 'The Apex Villa', location: 'Beverly Hills, CA', desc: 'A stunning contemporary home blending indoor and outdoor living spaces with precision structural engineering.', category: 'Residential', status: 'Completed', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBWP2QfhhfrNlcYNLs-ijIwbn9VCFXDseH0KTXByBcLDgtbxMY_90ziKLH8HecxuMXXdbeQzS6855qY84_W2zPixZOKluYFHnxkWPt_k3seofCHmC195MP-8KxCUyYTfcZgg1nATwEHMFiGlIPDGgnTP8zBHvoLKaI63l_XdNnPI8QtZHR0Ykowyw2gMTqDnMVi-gMKH-8prEeIRXXOFFuJHH0ZutzVPhjiNTQ6ccuTHVqawyC0bQ', progress: null },
   { id: 2, title: 'Nexus Corporate Hub', location: 'Downtown Seattle, WA', desc: 'State-of-the-art office complex designed for sustainable energy efficiency and collaborative workspaces.', category: 'Commercial', status: 'Completed', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBYpQ-AnDJAvgG7sBUps72EeOUY8fTYBNjTyjPK-b98p-KYI3goqYjndQ7JzleQ4cc0lQM1pa6YFIfdmZlBW-iDE29c1BtrL71waWl_Ea3lrSIh4xCHam22knNX-eDJ4Oe1YCoOBkoeAr2BEaH7XbVsoRYlZONYKUZTPW9H5S1A9zjkKhEyfI1e23-66u_NyqoNlFyPuTHTF6eKGSL1tw9bys7wl_ji2UX28X-GeWVG-fkz-Oz2hA', progress: null },
   { id: 3, title: 'Heritage Loft Restoration', location: 'Brooklyn, NY', desc: 'Meticulous restoration of a 1920s warehouse into luxury residential lofts, preserving original architectural integrity.', category: 'Renovation', status: 'Completed', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAVEjoBmUfaAMArKruKmiHNyIv3dAAlUe9ogEKqjmDe4dkbizUFttaAFJuPxpl_nuRCUrlQ9gP_CRDf5e0EktnIMm6twwomPIAccugk31LAA1xn_vn_l-jgGiWf1lZph4nbsJWN4MypMwc9JiSIBtQqidW6RamZNWrWT8-0kqXzVMEf9dhqqHWLTuKTC6gqRAFlOIlxkU31Dc6Lw0yDBFj2QVz2yxY8SyWtmqf0XGo54gdTe0xpNg', progress: null },
@@ -22,10 +21,32 @@ const categoryColors = {
 };
 
 const Projects = () => {
+  const [projectList, setProjectList] = React.useState(initialProjects);
   const [activeStatus, setActiveStatus] = useState('Completed');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  const filtered = projects.filter(p =>
+  React.useEffect(() => {
+    fetch('http://localhost:3000/api/auth/projects', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.projects && data.projects.length > 0) {
+          const fetched = data.projects.map(p => ({
+            id: p.Id,
+            title: p.name,
+            location: p.location || 'Location',
+            desc: `Service: ${p.service_name || 'Construction'}. Status: ${p.status}`,
+            category: p.category || 'Residential',
+            status: p.status === 'completed' ? 'Completed' : (p.status === 'active' ? 'Ongoing' : 'Completed'),
+            img: initialProjects[(p.Id % initialProjects.length)]?.img || initialProjects[0].img,
+            progress: p.progress || null,
+          }));
+          setProjectList(fetched);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const filtered = projectList.filter(p =>
     p.status === activeStatus &&
     (activeCategory === 'All' || p.category === activeCategory)
   );

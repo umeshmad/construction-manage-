@@ -48,9 +48,33 @@ const specialised = [
   },
 ];
 
-const Services = () => (
-  <div className="text-on-surface font-body-md antialiased" style={{ backgroundColor: '#FAFAF9' }}>
-    <NavBar activeLink="Services" />
+const Services = () => {
+  const [serviceList, setServiceList] = React.useState(services);
+
+  React.useEffect(() => {
+    fetch('http://localhost:3000/api/auth/services', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.services && data.services.length > 0) {
+          const fetched = data.services.map((s, idx) => ({
+            icon: services[idx % services.length]?.icon || 'home_work',
+            tag: s.category || 'General',
+            title: s.name,
+            desc: s.description || 'Professional construction and architectural service.',
+            items: services[idx % services.length]?.items || ['Quality Assurance', 'Expert Execution', 'On-time Delivery'],
+            price: services[idx % services.length]?.price || 'Custom Quote',
+            reversed: idx % 2 !== 0,
+            img: services[idx % services.length]?.img || services[0].img,
+          }));
+          setServiceList(fetched);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="text-on-surface font-body-md antialiased" style={{ backgroundColor: '#FAFAF9' }}>
+      <NavBar activeLink="Services" />
 
     {/* Hero */}
     <section className="relative w-full h-[80vh] min-h-[600px] flex items-center justify-center pt-20">
@@ -69,7 +93,7 @@ const Services = () => (
     {/* Services */}
     <main className="w-full pb-32 pt-32" style={{ background: 'linear-gradient(180deg, #FAFAF9 0%, #F5F5F4 100%)' }}>
       <div className="max-w-container-max-width mx-auto px-margin-mobile md:px-margin-desktop space-y-40">
-        {services.map((s) => (
+        {serviceList.map((s) => (
           <div key={s.title} className={`flex flex-col ${s.reversed ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-12 lg:gap-0 relative`}>
             <div className="w-full md:w-8/12 relative group rounded-2xl overflow-hidden shadow-2xl z-0">
               <img alt={s.title} className="w-full h-[600px] lg:h-[700px] object-cover transition-transform duration-700 group-hover:scale-105" src={s.img} />
@@ -148,5 +172,6 @@ const Services = () => (
     <Footer />
   </div>
 );
+};
 
 export default Services;

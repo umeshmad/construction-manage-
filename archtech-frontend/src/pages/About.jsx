@@ -136,7 +136,7 @@ const About = () => (
             <h2 className="text-4xl md:text-5xl font-bold text-on-surface tracking-tight">Mission & Vision</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {values.map((item, i) => (
+            {values.map((item) => (
               <div key={item.title} className="group relative rounded-2xl p-10 border border-[#E5E0DD] bg-white hover:-translate-y-2 transition-all duration-400 overflow-hidden"
                 style={{ boxShadow: '0 4px 24px rgba(44,62,80,0.06)' }}>
                 <div className="absolute top-0 right-0 w-40 h-40 opacity-5 -translate-y-8 translate-x-8 rounded-full group-hover:opacity-10 transition-opacity duration-300"

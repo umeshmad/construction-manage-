@@ -1,10 +1,72 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('login');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Login state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Register state
+  const [regFirst, setRegFirst] = useState('');
+  const [regLast, setRegLast] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirm, setRegConfirm] = useState('');
+
+  // Feedback
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess(''); setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      setSuccess('Welcome back, ' + data.name + '! Redirecting...');
+      setTimeout(() => navigate(data.role === 'admin' ? '/admin/dashboard' : '/client/my-projects'), 1000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    if (regPassword !== regConfirm) { setError('Passwords do not match.'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: (regFirst + ' ' + regLast).trim(), email: regEmail, password: regPassword, phone: regPhone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Registration failed');
+      setSuccess('Account created! Welcome, ' + data.name + '. Redirecting...');
+      setTimeout(() => navigate('/client/my-projects'), 1000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex font-body-md text-on-surface">
@@ -79,7 +141,7 @@ const Login = () => {
               <div key={item.text} className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: 'rgba(230,126,34,0.2)', border: '1px solid rgba(230,126,34,0.3)' }}>
-                  <span className="icon-mask text-[#e67e22] text-[16px]" style={{ fontVariationSettings: "'FILL' 1" ,  WebkitMaskImage: `url(/icons/${item.icon}.svg)`, maskImage: `url(/icons/${item.icon}.svg)` }}></span>
+                  <span className="icon-mask text-[#e67e22] text-[16px]" style={{ fontVariationSettings: "'FILL' 1", WebkitMaskImage: `url(/icons/${item.icon}.svg)`, maskImage: `url(/icons/${item.icon}.svg)` }}></span>
                 </div>
                 <span className="text-white/70 text-sm">{item.text}</span>
               </div>
@@ -138,9 +200,13 @@ const Login = () => {
             ))}
           </div>
 
+          {/* Error / Success */}
+          {error && <div className="mb-2 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">{error}</div>}
+          {success && <div className="mb-2 p-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl">{success}</div>}
+
           {/* LOGIN FORM */}
           {activeTab === 'login' && (
-            <form className="space-y-5" onSubmit={e => e.preventDefault()}>
+            <form className="space-y-5" onSubmit={handleLogin}>
               <div>
                 <label className="block text-sm font-semibold text-on-surface mb-2" htmlFor="login-email">Email Address</label>
                 <div className="relative">
@@ -149,9 +215,11 @@ const Login = () => {
                     id="login-email"
                     placeholder="you@example.com"
                     type="email"
+                    value={loginEmail}
+                    onChange={e => setLoginEmail(e.target.value)}
                     required
                   />
-                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/mail.svg)', maskImage: 'url(/icons/mail.svg)' , width: '18px', height: '18px'}}></span>
+                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/mail.svg)', maskImage: 'url(/icons/mail.svg)', width: '18px', height: '18px' }}></span>
                 </div>
               </div>
 
@@ -166,9 +234,11 @@ const Login = () => {
                     id="login-password"
                     placeholder="••••••••"
                     type={showPassword ? 'text' : 'password'}
+                    value={loginPassword}
+                    onChange={e => setLoginPassword(e.target.value)}
                     required
                   />
-                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/lock.svg)', maskImage: 'url(/icons/lock.svg)' , width: '18px', height: '18px'}}></span>
+                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/lock.svg)', maskImage: 'url(/icons/lock.svg)', width: '18px', height: '18px' }}></span>
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -189,7 +259,7 @@ const Login = () => {
                 className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl flex items-center justify-center gap-2"
                 style={{ background: 'linear-gradient(135deg, #e67e22, #f39c12)', boxShadow: '0 4px 16px rgba(230,126,34,0.3)' }}
               >
-                <span className="icon-mask text-[18px]" style={{ WebkitMaskImage: 'url(/icons/login.svg)', maskImage: 'url(/icons/login.svg)' , width: '18px', height: '18px'}}></span>
+                <span className="icon-mask text-[18px]" style={{ WebkitMaskImage: 'url(/icons/login.svg)', maskImage: 'url(/icons/login.svg)', width: '18px', height: '18px' }}></span>
                 Sign In to Portal
               </button>
 
@@ -220,20 +290,20 @@ const Login = () => {
 
           {/* REGISTER FORM */}
           {activeTab === 'register' && (
-            <form className="space-y-5" onSubmit={e => e.preventDefault()}>
+            <form className="space-y-5" onSubmit={handleRegister}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-on-surface mb-2" htmlFor="reg-first">First Name</label>
                   <div className="relative">
-                    <input className="input-field pl-12" id="reg-first" placeholder="John" type="text" required />
-                    <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/person.svg)', maskImage: 'url(/icons/person.svg)' , width: '18px', height: '18px'}}></span>
+                    <input className="input-field pl-12" id="reg-first" placeholder="John" type="text" value={regFirst} onChange={e => setRegFirst(e.target.value)} required />
+                    <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/person.svg)', maskImage: 'url(/icons/person.svg)', width: '18px', height: '18px' }}></span>
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-on-surface mb-2" htmlFor="reg-last">Last Name</label>
                   <div className="relative">
-                    <input className="input-field pl-12" id="reg-last" placeholder="Doe" type="text" required />
-                    <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/badge.svg)', maskImage: 'url(/icons/badge.svg)' , width: '18px', height: '18px'}}></span>
+                    <input className="input-field pl-12" id="reg-last" placeholder="Doe" type="text" value={regLast} onChange={e => setRegLast(e.target.value)} required />
+                    <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/badge.svg)', maskImage: 'url(/icons/badge.svg)', width: '18px', height: '18px' }}></span>
                   </div>
                 </div>
               </div>
@@ -241,16 +311,16 @@ const Login = () => {
               <div>
                 <label className="block text-sm font-semibold text-on-surface mb-2" htmlFor="reg-email">Email Address</label>
                 <div className="relative">
-                  <input className="input-field pl-12" id="reg-email" placeholder="you@example.com" type="email" required />
-                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/mail.svg)', maskImage: 'url(/icons/mail.svg)' , width: '18px', height: '18px'}}></span>
+                  <input className="input-field pl-12" id="reg-email" placeholder="you@example.com" type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} required />
+                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/mail.svg)', maskImage: 'url(/icons/mail.svg)', width: '18px', height: '18px' }}></span>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-on-surface mb-2" htmlFor="reg-phone">Phone Number</label>
                 <div className="relative">
-                  <input className="input-field pl-12" id="reg-phone" placeholder="+1 (555) 000-0000" type="tel" />
-                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/phone.svg)', maskImage: 'url(/icons/phone.svg)' , width: '18px', height: '18px'}}></span>
+                  <input className="input-field pl-12" id="reg-phone" placeholder="+1 (555) 000-0000" type="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} />
+                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/phone.svg)', maskImage: 'url(/icons/phone.svg)', width: '18px', height: '18px' }}></span>
                 </div>
               </div>
 
@@ -262,9 +332,11 @@ const Login = () => {
                     id="reg-pass"
                     placeholder="Min 8 characters"
                     type={showPassword ? 'text' : 'password'}
+                    value={regPassword}
+                    onChange={e => setRegPassword(e.target.value)}
                     required
                   />
-                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/lock.svg)', maskImage: 'url(/icons/lock.svg)' , width: '18px', height: '18px'}}></span>
+                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/lock.svg)', maskImage: 'url(/icons/lock.svg)', width: '18px', height: '18px' }}></span>
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-[#e67e22]">
                     <span className="icon-mask text-[18px]" style={{ WebkitMaskImage: `url(/icons/${showPassword ? 'visibility_off' : 'visibility'}.svg)`, maskImage: `url(/icons/${showPassword ? 'visibility_off' : 'visibility'}.svg)` }}></span>
                   </button>
@@ -279,9 +351,11 @@ const Login = () => {
                     id="reg-confirm"
                     placeholder="Repeat your password"
                     type={showConfirm ? 'text' : 'password'}
+                    value={regConfirm}
+                    onChange={e => setRegConfirm(e.target.value)}
                     required
                   />
-                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/lock.svg)', maskImage: 'url(/icons/lock.svg)' , width: '18px', height: '18px'}}></span>
+                  <span className="icon-mask absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" style={{ WebkitMaskImage: 'url(/icons/lock.svg)', maskImage: 'url(/icons/lock.svg)', width: '18px', height: '18px' }}></span>
                   <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-[#e67e22]">
                     <span className="icon-mask text-[18px]" style={{ WebkitMaskImage: `url(/icons/${showConfirm ? 'visibility_off' : 'visibility'}.svg)`, maskImage: `url(/icons/${showConfirm ? 'visibility_off' : 'visibility'}.svg)` }}></span>
                   </button>
@@ -303,7 +377,7 @@ const Login = () => {
                 className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl flex items-center justify-center gap-2"
                 style={{ background: 'linear-gradient(135deg, #e67e22, #f39c12)', boxShadow: '0 4px 16px rgba(230,126,34,0.3)' }}
               >
-                <span className="icon-mask text-[18px]" style={{ WebkitMaskImage: 'url(/icons/person_add.svg)', maskImage: 'url(/icons/person_add.svg)' , width: '18px', height: '18px'}}></span>
+                <span className="icon-mask text-[18px]" style={{ WebkitMaskImage: 'url(/icons/person_add.svg)', maskImage: 'url(/icons/person_add.svg)', width: '18px', height: '18px' }}></span>
                 Create My Account
               </button>
             </form>
@@ -312,7 +386,7 @@ const Login = () => {
           {/* Back to site */}
           <div className="mt-8 text-center">
             <Link to="/" className="inline-flex items-center gap-2 text-sm text-on-surface-variant hover:text-[#e67e22] transition-colors">
-              <span className="icon-mask text-[16px]" style={{ WebkitMaskImage: 'url(/icons/arrow_back.svg)', maskImage: 'url(/icons/arrow_back.svg)' , width: '16px', height: '16px'}}></span>
+              <span className="icon-mask text-[16px]" style={{ WebkitMaskImage: 'url(/icons/arrow_back.svg)', maskImage: 'url(/icons/arrow_back.svg)', width: '16px', height: '16px' }}></span>
               Back to ArchTech Pro
             </Link>
           </div>

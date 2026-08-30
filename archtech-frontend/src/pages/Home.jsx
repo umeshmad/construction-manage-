@@ -287,7 +287,7 @@ const Home = () => {
 
           {/* Equal height grid cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-            {recentProjects.map((p, i) => (
+            {recentProjects.map((p) => (
               <div
                 key={p.title}
                 className="group relative rounded-2xl overflow-hidden cursor-pointer"

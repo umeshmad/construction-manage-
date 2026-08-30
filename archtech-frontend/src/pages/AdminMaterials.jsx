@@ -15,8 +15,8 @@ const initialSuppliers = [
 
 const AdminMaterials = () => {
   const [activeTab, setActiveTab] = useState('materials');
-  const [materials, setMaterials] = useState(initialMaterials);
-  const [suppliers, setSuppliers] = useState(initialSuppliers);
+  const [materials, _setMaterials] = useState(initialMaterials);
+  const [suppliers, _setSuppliers] = useState(initialSuppliers);
   const [search, setSearch] = useState('');
 
   const filteredMaterials = materials.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || m.sku.toLowerCase().includes(search.toLowerCase()));

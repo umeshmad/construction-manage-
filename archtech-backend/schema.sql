@@ -1,11 +1,3 @@
--- ============================================
--- archtech_pro database
--- Foreign keys are written INLINE inside each CREATE TABLE.
--- Because of this, table order matters: a table can only
--- reference another table that was already created above it.
--- (This is why the table order below is different from a
--- simple numbered list — parents come before children.)
--- ============================================
 
 CREATE DATABASE archtech_pro;
 USE archtech_pro;
