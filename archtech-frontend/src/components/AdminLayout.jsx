@@ -3,14 +3,22 @@ import { Link, useLocation } from 'react-router-dom';
 
 const AdminLayout = ({ children, title, subtitle }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
+
+  const getMonthDateRange = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    return `${firstDay.toLocaleDateString('en-US', options)} - ${lastDay.toLocaleDateString('en-US', options)}`;
+  };
 
   const navLinks = [
     { label: 'Dashboard', to: '/admin/dashboard', icon: 'dashboard' },
     { label: 'Tasks', to: '/admin/tasks', icon: 'task_alt' },
     { label: 'Workers', to: '/admin/workers', icon: 'groups' },
-    { label: 'Materials', to: '/admin/materials', icon: 'inventory' },
-    { label: 'Suppliers', to: '/admin/suppliers', icon: 'local_shipping' },
+    { label: 'Materials & Suppliers', to: '/admin/materials', icon: 'inventory' },
     { label: 'Payments', to: '/admin/payments', icon: 'credit_card' },
     { label: 'Expenses', to: '/admin/expenses', icon: 'payments' },
     { label: 'Quotations', to: '/admin/quotations', icon: 'request_quote' },
@@ -71,14 +79,48 @@ const AdminLayout = ({ children, title, subtitle }) => {
               {subtitle && <p className="font-body-md text-body-md text-on-surface-variant hidden md:block">{subtitle}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 relative">
             <div className="hidden lg:flex items-center bg-surface-container-low border border-[#E5E0DD] rounded-lg px-4 py-2 text-sm">
               <span className="icon-mask text-on-surface-variant mr-2 text-[20px]" style={{ WebkitMaskImage: 'url(/icons/calendar_today.svg)', maskImage: 'url(/icons/calendar_today.svg)' , width: '20px', height: '20px'}}></span>
-              <span className="font-label-md text-label-md text-on-surface">Oct 1, 2023 - Oct 31, 2023</span>
+              <span className="font-label-md text-label-md text-on-surface">{getMonthDateRange()}</span>
             </div>
-            <button className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-dim transition-colors">
-              <span className="icon-mask" style={{ WebkitMaskImage: 'url(/icons/notifications.svg)', maskImage: 'url(/icons/notifications.svg)' , width: '20px', height: '20px'}}></span>
-            </button>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-dim transition-colors relative"
+              >
+                <span className="icon-mask" style={{ WebkitMaskImage: 'url(/icons/notifications.svg)', maskImage: 'url(/icons/notifications.svg)' , width: '20px', height: '20px'}}></span>
+                <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-white"></span>
+              </button>
+
+              {notificationsOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-[#E5E0DD] z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#F0EEED] flex justify-between items-center bg-[#F9F8F7]">
+                    <h3 className="font-label-md font-bold text-on-surface">Notifications</h3>
+                    <span className="text-xs text-primary cursor-pointer hover:underline">Mark all as read</span>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {[
+                      { title: "New Project Request", desc: "Alpha Tower submitted a new request.", time: "10 min ago", unread: true },
+                      { title: "Payment Overdue", desc: "Invoice #1042 is overdue by 3 days.", time: "1 hr ago", unread: true },
+                      { title: "Task Completed", desc: "Foundation inspection completed.", time: "Yesterday", unread: false }
+                    ].map((n, i) => (
+                      <div key={i} className={`px-4 py-3 border-b border-[#F0EEED] last:border-b-0 cursor-pointer hover:bg-surface-container-low transition-colors ${n.unread ? 'bg-primary-container/10' : ''}`}>
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-label-md text-sm text-on-surface">{n.title}</h4>
+                          <span className="text-xs text-on-surface-variant">{n.time}</span>
+                        </div>
+                        <p className="text-xs text-on-surface-variant line-clamp-2">{n.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-4 py-2 text-center border-t border-[#F0EEED] bg-[#F9F8F7] cursor-pointer hover:bg-surface-container-low transition-colors">
+                    <span className="text-xs text-primary font-medium">View All Notifications</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

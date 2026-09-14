@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 
 const reportsData = [
@@ -18,17 +18,57 @@ const initialHistory = [
 const AdminReports = () => {
   const [history, setHistory] = useState(initialHistory);
   const [dateRanges, setDateRanges] = useState({});
+  const [apiData, setApiData] = useState({ summary: {}, projectStatuses: [], expenseByCategory: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/auth/admin/reports', {
+          credentials: 'include'
+        });
+        const result = await res.json();
+        if (res.ok) setApiData(result);
+      } catch (err) {
+        console.error("Failed to load report stats", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReports();
+  }, []);
 
   const handleGenerate = (reportTitle) => {
     const range = dateRanges[reportTitle] || 'Custom Range';
+    const filename = `${reportTitle.replace(/\s+/g, '')}_Report_${range.replace(/\s+/g, '')}.csv`;
     const newReport = {
       id: Date.now(),
-      name: `${reportTitle.replace(/\s+/g, '')}_Report_${range.replace(/\s+/g, '')}.pdf`,
+      name: filename,
       desc: `Generated Just Now • 420 KB`,
       icon: 'description'
     };
     setHistory([newReport, ...history]);
-    alert(`Report "${reportTitle}" generated successfully for range: ${range}`);
+
+    // Actually trigger a download
+    const content = `ArchTech Pro - ${reportTitle}\nDate Range: ${range}\n\n[Report Data Placeholder]`;
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadHistory = (item) => {
+    const content = `ArchTech Pro - Archived Report\nFile: ${item.name}\n\n[Historical Data Placeholder]`;
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = item.name;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleDateChange = (reportTitle, val) => {
@@ -40,6 +80,33 @@ const AdminReports = () => {
 
   return (
     <AdminLayout title="Reports" subtitle="Generate detailed architectural and operational analytics across your portfolio.">
+      
+      {/* Real-time DB Stats */}
+      {!loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-gutter mb-8">
+          <div className="bg-surface-container-lowest p-6 rounded-xl border border-[#E5E0DD] shadow-sm">
+            <h3 className="text-on-surface-variant font-label-md uppercase mb-2">Total Projects</h3>
+            <p className="font-display-md text-on-surface">{apiData.summary.totalProjects || 0}</p>
+          </div>
+          <div className="bg-surface-container-lowest p-6 rounded-xl border border-[#E5E0DD] shadow-sm">
+            <h3 className="text-on-surface-variant font-label-md uppercase mb-2">Total Workers</h3>
+            <p className="font-display-md text-on-surface">{apiData.summary.totalWorkers || 0}</p>
+          </div>
+          <div className="bg-surface-container-lowest p-6 rounded-xl border border-[#E5E0DD] shadow-sm">
+            <h3 className="text-on-surface-variant font-label-md uppercase mb-2">Total Tasks</h3>
+            <p className="font-display-md text-on-surface">{apiData.summary.totalTasks || 0}</p>
+          </div>
+          <div className="bg-surface-container-lowest p-6 rounded-xl border border-[#E5E0DD] shadow-sm">
+            <h3 className="text-on-surface-variant font-label-md uppercase mb-2">Total Revenue</h3>
+            <p className="font-display-md text-success">${Number(apiData.summary.totalRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+          </div>
+          <div className="bg-surface-container-lowest p-6 rounded-xl border border-[#E5E0DD] shadow-sm">
+            <h3 className="text-on-surface-variant font-label-md uppercase mb-2">Total Expenses</h3>
+            <p className="font-display-md text-error">${Number(apiData.summary.totalExpenses || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+          </div>
+        </div>
+      )}
+
       {/* Report Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter mb-12">
         {reportsData.map(r => (
@@ -51,14 +118,20 @@ const AdminReports = () => {
             <p className="font-body-md text-body-md text-on-surface-variant mb-8 flex-grow">{r.desc}</p>
             <div className="flex flex-col gap-4 mt-auto">
               <div className="relative">
-                <input
-                  className="w-full bg-surface border border-outline-variant rounded px-4 py-2.5 text-on-surface font-body-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-on-surface-variant/50"
-                  placeholder="Select Date Range (e.g. Oct 2023)"
-                  type="text"
+                <select
+                  className="w-full appearance-none bg-surface border border-outline-variant rounded px-4 py-2.5 text-on-surface font-body-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all cursor-pointer"
                   value={dateRanges[r.title] || ''}
                   onChange={e => handleDateChange(r.title, e.target.value)}
-                />
-                <span className="icon-mask absolute right-3 top-3 text-on-surface-variant text-[20px] pointer-events-none" style={{ WebkitMaskImage: 'url(/icons/calendar_month.svg)', maskImage: 'url(/icons/calendar_month.svg)' , width: '20px', height: '20px'}}></span>
+                >
+                  <option value="" disabled>Select Date Range</option>
+                  <option value="Last 7 Days">Last 7 Days</option>
+                  <option value="This Month">This Month</option>
+                  <option value="Last Month">Last Month</option>
+                  <option value="This Quarter">This Quarter</option>
+                  <option value="This Year">This Year</option>
+                  <option value="All Time">All Time</option>
+                </select>
+                <span className="icon-mask absolute right-3 top-3 text-on-surface-variant text-[20px] pointer-events-none" style={{ WebkitMaskImage: 'url(/icons/arrow_drop_down.svg)', maskImage: 'url(/icons/arrow_drop_down.svg)' , width: '20px', height: '20px'}}></span>
               </div>
               <button
                 onClick={() => handleGenerate(r.title)}
@@ -89,7 +162,7 @@ const AdminReports = () => {
                   <div className="font-caption text-caption text-on-surface-variant mt-0.5">{item.desc}</div>
                 </div>
               </div>
-              <a className="font-label-md text-label-md text-primary hover:text-surface-tint flex items-center gap-1 cursor-pointer" onClick={() => alert(`Downloading ${item.name}...`)}>
+              <a className="font-label-md text-label-md text-primary hover:text-surface-tint flex items-center gap-1 cursor-pointer" onClick={() => handleDownloadHistory(item)}>
                 <span className="hidden md:inline">Download</span>
                 <span className="icon-mask text-[18px]" style={{ WebkitMaskImage: 'url(/icons/download.svg)', maskImage: 'url(/icons/download.svg)' , width: '18px', height: '18px'}}></span>
               </a>

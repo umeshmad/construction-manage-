@@ -1,191 +1,242 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 
-const initialQuotations = [
-  { id: 1, project: 'Smith Residence Renovation', client: 'John Smith', timeAgo: '2 days ago', status: 'Needs Attention', statusClass: 'bg-secondary-container text-on-secondary-container' },
-  { id: 2, project: 'Oceanside Commercial Complex', client: 'Elena Rodriguez', date: 'Oct 12, 2024', amount: 24500.00, status: 'Accepted', statusClass: 'bg-[#E8F5E9] text-[#2E7D32]' },
-  { id: 3, project: 'Downtown Loft Conversion', client: 'Marcus Chen', date: 'Oct 10, 2024', amount: 8200.00, status: 'Pending', statusClass: 'bg-surface-container-high text-on-surface-variant' },
-  { id: 4, project: 'Valley View Estate', client: 'Sarah Jenkins', date: 'Oct 05, 2024', amount: 12000.00, status: 'Rejected', statusClass: 'bg-error-container text-on-error-container' }
-];
-
 const AdminQuotations = () => {
-  const [quotations, _setQuotations] = useState(initialQuotations);
-  const [lineItems, setLineItems] = useState([
-    { id: 1, desc: 'Initial Architectural Consultation & Site Visit', amount: 1500 },
-    { id: 2, desc: 'Drafting - Floor Plans (Ground & First Floor)', amount: 4500 }
-  ]);
-  const [newDesc, setNewDesc] = useState('');
-  const [newAmt, setNewAmt] = useState('');
+  const [data, setData] = useState({ pendingRequests: [], quotations: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  const [showModal, setShowModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [newItems, setNewItems] = useState([{ desc: '', amount: '' }]);
 
-  const handleAddLine = () => {
-    if (!newDesc || !newAmt) return;
-    setLineItems([...lineItems, { id: Date.now(), desc: newDesc, amount: parseFloat(newAmt) }]);
-    setNewDesc('');
-    setNewAmt('');
+  const fetchQuotations = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('http://localhost:3000/api/auth/admin/quotations', {
+        credentials: 'include'
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to load quotations');
+      setData(result);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRemoveLine = (id) => {
-    setLineItems(lineItems.filter(item => item.id !== id));
+  useEffect(() => {
+    fetchQuotations();
+  }, []);
+
+  const handleSendQuotation = async (e) => {
+    e.preventDefault();
+    const validItems = newItems.filter(item => item.desc && item.amount);
+    if (validItems.length === 0) {
+      alert("Please add at least one item.");
+      return;
+    }
+
+    try {
+      const res = await fetch('http://localhost:3000/api/auth/admin/quotations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          requestId: selectedRequest.Id,
+          items: validItems
+        })
+      });
+      if (!res.ok) {
+        const result = await res.json();
+        throw new Error(result.error || 'Failed to send quotation');
+      }
+      setShowModal(false);
+      setSelectedRequest(null);
+      setNewItems([{ desc: '', amount: '' }]);
+      fetchQuotations();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const handleSendQuotation = (project) => {
-    const totalAmt = lineItems.reduce((acc, item) => acc + item.amount, 0);
-    alert(`Quotation of $${totalAmt.toLocaleString()} sent successfully to client for project "${project}"!`);
+  const getStatusStyle = (status) => {
+    if (status === 'accepted') return 'bg-[#e6f4ea] text-[#137333] border-[#ceead6]';
+    if (status === 'rejected') return 'bg-error-container text-error border-error-container';
+    return 'bg-warning-container text-warning border-warning-container';
   };
 
   return (
-    <AdminLayout title="Quotations Management" subtitle="Review pending requests and manage sent quotes.">
-      <div className="flex justify-between items-end pb-6 border-b border-outline-variant">
-        <div />
-        <button className="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-lg font-label-md text-label-md hover:bg-surface-tint transition-colors">
-          <span className="icon-mask" style={{ WebkitMaskImage: 'url(/icons/add.svg)', maskImage: 'url(/icons/add.svg)' , width: '20px', height: '20px'}}></span>
-          New Quote
-        </button>
+    <AdminLayout title="Quotations" subtitle="Process project requests and issue quotations.">
+      {error && <div className="p-4 mb-6 bg-red-50 text-red-700 rounded-lg">{error}</div>}
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        
+        {/* Pending Requests Column */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <h2 className="font-headline-md text-headline-md text-on-surface">Pending Requests</h2>
+            <span className="bg-primary text-on-primary font-caption text-caption px-2 py-1 rounded-full">{data.pendingRequests.length}</span>
+          </div>
+          <div className="flex flex-col gap-4">
+            {loading ? (
+              <div className="text-center py-8 text-on-surface-variant">Loading...</div>
+            ) : data.pendingRequests.length === 0 ? (
+              <div className="text-center py-8 text-on-surface-variant bg-surface-container-lowest border border-[#E5E0DD] rounded-xl">No pending requests.</div>
+            ) : (
+              data.pendingRequests.map(r => (
+                <div key={r.Id} className="bg-surface-container-lowest rounded-xl p-6 border border-warning shadow-sm diffusion-shadow hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-headline-md text-[18px] font-bold text-on-surface">{r.title}</h3>
+                    <span className="font-caption text-caption text-on-surface-variant">
+                      {new Date(r.submitted_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="font-body-md text-body-md text-on-surface-variant mb-4 flex items-center gap-2">
+                    <span className="icon-mask text-primary" style={{ WebkitMaskImage: 'url(/icons/person.svg)', maskImage: 'url(/icons/person.svg)' , width: '16px', height: '16px'}}></span>
+                    {r.customer_name}
+                  </p>
+                  <p className="font-body-md text-body-md text-on-surface mb-4 line-clamp-2">{r.description}</p>
+                  <div className="flex items-center justify-between border-t border-[#F0EEED] pt-4">
+                    <span className="font-label-md text-label-md text-on-surface-variant">Est. Budget: <strong className="text-on-surface">${Number(r.estimated_budget || 0).toLocaleString()}</strong></span>
+                    <button 
+                      onClick={() => { setSelectedRequest(r); setShowModal(true); }}
+                      className="bg-primary text-on-primary px-4 py-2 rounded font-label-md text-label-md hover:bg-[#b55a00] transition-colors"
+                    >
+                      Issue Quotation
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Sent Quotations Column */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <h2 className="font-headline-md text-headline-md text-on-surface">Sent Quotations</h2>
+          </div>
+          <div className="flex flex-col gap-4">
+            {loading ? (
+              <div className="text-center py-8 text-on-surface-variant">Loading...</div>
+            ) : data.quotations.length === 0 ? (
+              <div className="text-center py-8 text-on-surface-variant bg-surface-container-lowest border border-[#E5E0DD] rounded-xl">No sent quotations.</div>
+            ) : (
+              data.quotations.map(q => (
+                <div key={q.Id} className="bg-surface-container-lowest rounded-xl p-6 border border-[#E5E0DD] shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-label-md text-label-md font-bold text-on-surface">{q.project_title}</h3>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${getStatusStyle(q.status)}`}>
+                      {q.status}
+                    </span>
+                  </div>
+                  <p className="font-body-md text-body-md text-on-surface-variant mb-4 flex items-center gap-2">
+                    <span className="icon-mask text-primary" style={{ WebkitMaskImage: 'url(/icons/person.svg)', maskImage: 'url(/icons/person.svg)' , width: '16px', height: '16px'}}></span>
+                    {q.customer_name}
+                  </p>
+                  <div className="flex justify-between items-center bg-[#F9F8F7] p-3 rounded-lg border border-[#F0EEED]">
+                    <div>
+                      <span className="font-caption text-caption text-on-surface-variant block mb-1">Total Amount</span>
+                      <span className="font-headline-md text-on-surface font-bold">${Number(q.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-caption text-caption text-on-surface-variant block mb-1">Sent Date</span>
+                      <span className="font-body-md text-on-surface">{new Date(q.sent_date).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
       </div>
 
-      {/* Pending Quotation Requests with Line Item Builder */}
-      <section className="space-y-6">
-        <h3 className="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
-          <span className="icon-mask text-primary" style={{ WebkitMaskImage: 'url(/icons/pending_actions.svg)', maskImage: 'url(/icons/pending_actions.svg)' , width: '20px', height: '20px'}}></span>
-          Pending Quotation Requests
-        </h3>
-        <div className="space-y-6">
-          <div className="glass-card rounded-xl p-8 bg-white/95 border border-[#E5E0DD]">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+      {/* Modal */}
+      {showModal && selectedRequest && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl p-8 max-w-2xl w-full border border-outline-variant shadow-2xl flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-[#E5E0DD] pb-4">
               <div>
-                <h4 className="font-headline-sm text-lg font-semibold text-on-surface">Smith Residence Renovation</h4>
-                <p className="font-body-md text-body-md text-on-surface-variant">Requested by: John Smith • 2 days ago</p>
+                <h3 className="font-headline-md text-xl font-bold text-on-surface">Issue Quotation</h3>
+                <p className="text-on-surface-variant text-sm">{selectedRequest.title}</p>
               </div>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-md text-label-md">
-                Needs Attention
-              </span>
+              <button onClick={() => setShowModal(false)} className="text-on-surface-variant hover:text-error">
+                <span className="icon-mask text-xl" style={{ WebkitMaskImage: 'url(/icons/close.svg)', maskImage: 'url(/icons/close.svg)' }}></span>
+              </button>
             </div>
-
-            {/* Line Item Builder */}
-            <div className="bg-[#F9F8F7] rounded-lg p-6 border border-outline-variant">
-              <h5 className="font-label-md text-label-md text-on-surface mb-4 font-semibold uppercase tracking-wider">Line Item Builder</h5>
-              <div className="space-y-4 mb-6">
-                {lineItems.map(item => (
-                  <div key={item.id} className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-                    <div className="flex-1 w-full">
-                      <input
-                        className="w-full bg-surface-container-lowest border border-outline-variant rounded-md px-4 py-2 font-body-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-shadow"
-                        type="text"
-                        value={item.desc}
-                        onChange={(e) => {
-                          const updated = [...lineItems];
-                          updated.find(x => x.id === item.id).desc = e.target.value;
-                          setLineItems(updated);
-                        }}
-                      />
-                    </div>
-                    <div className="w-full md:w-48 relative">
-                      <span className="absolute left-3 top-2.5 text-on-surface-variant">$</span>
-                      <input
-                        className="w-full pl-8 bg-surface-container-lowest border border-[#E5E0DD] rounded-md px-4 py-2 font-body-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-shadow"
-                        type="number"
-                        value={item.amount}
-                        onChange={(e) => {
-                          const updated = [...lineItems];
-                          updated.find(x => x.id === item.id).amount = parseFloat(e.target.value) || 0;
-                          setLineItems(updated);
-                        }}
-                      />
-                    </div>
-                    <button onClick={() => handleRemoveLine(item.id)} className="text-error hover:bg-error-container p-2 rounded-md transition-colors" title="Remove Line">
-                      <span className="icon-mask" style={{ WebkitMaskImage: 'url(/icons/delete.svg)', maskImage: 'url(/icons/delete.svg)' , width: '20px', height: '20px'}}></span>
+            
+            <form onSubmit={handleSendQuotation} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3">
+                <div className="flex justify-between items-center text-sm font-semibold text-on-surface-variant mb-1">
+                  <span className="w-2/3">Description</span>
+                  <span className="w-1/3 text-right pr-12">Amount ($)</span>
+                </div>
+                {newItems.map((item, idx) => (
+                  <div key={idx} className="flex gap-4 items-center">
+                    <input 
+                      required
+                      className="w-2/3 border border-outline-variant rounded p-2 text-sm focus:border-primary focus:outline-none" 
+                      placeholder="Line item description" 
+                      value={item.desc}
+                      onChange={(e) => {
+                        const arr = [...newItems];
+                        arr[idx].desc = e.target.value;
+                        setNewItems(arr);
+                      }}
+                    />
+                    <input 
+                      required
+                      type="number"
+                      step="0.01"
+                      className="w-1/3 border border-outline-variant rounded p-2 text-sm focus:border-primary focus:outline-none text-right" 
+                      placeholder="0.00" 
+                      value={item.amount}
+                      onChange={(e) => {
+                        const arr = [...newItems];
+                        arr[idx].amount = e.target.value;
+                        setNewItems(arr);
+                      }}
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if(newItems.length > 1) {
+                          setNewItems(newItems.filter((_, i) => i !== idx));
+                        }
+                      }}
+                      className="text-on-surface-variant hover:text-error w-8 flex-shrink-0"
+                    >
+                      <span className="icon-mask" style={{ WebkitMaskImage: 'url(/icons/close.svg)', maskImage: 'url(/icons/close.svg)', width:'16px', height:'16px' }}></span>
                     </button>
                   </div>
                 ))}
-
-                {/* Empty Row for new entry */}
-                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center pt-2">
-                  <div className="flex-1 w-full">
-                    <input
-                      className="w-full bg-surface-container-lowest border border-outline-variant rounded-md px-4 py-2 font-body-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-shadow"
-                      placeholder="Add new description..."
-                      type="text"
-                      value={newDesc}
-                      onChange={e => setNewDesc(e.target.value)}
-                    />
-                  </div>
-                  <div className="w-full md:w-48 relative">
-                    <span className="absolute left-3 top-2.5 text-on-surface-variant">$</span>
-                    <input
-                      className="w-full pl-8 bg-surface-container-lowest border border-[#E5E0DD] rounded-md px-4 py-2 font-body-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                      placeholder="0.00"
-                      type="number"
-                      value={newAmt}
-                      onChange={e => setNewAmt(e.target.value)}
-                    />
-                  </div>
-                  <button onClick={handleAddLine} className="text-primary hover:bg-surface-container-low p-2 rounded-md transition-colors animate-pulse" title="Add Line">
-                    <span className="icon-mask" style={{ WebkitMaskImage: 'url(/icons/add_circle.svg)', maskImage: 'url(/icons/add_circle.svg)' , width: '20px', height: '20px'}}></span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="border-t border-[#E5E0DD] pt-4 flex flex-col md:flex-row justify-between items-center gap-6">
-                <div className="text-right w-full md:w-auto">
-                  <span className="font-body-md text-body-md text-on-surface-variant mr-4">Estimated Total:</span>
-                  <span className="font-headline-md text-headline-md font-bold text-on-surface">
-                    ${lineItems.reduce((acc, item) => acc + item.amount, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <button onClick={() => handleSendQuotation('Smith Residence Renovation')} className="w-full md:w-auto bg-primary text-on-primary px-8 py-3 rounded-lg font-label-md text-label-md hover:bg-surface-tint transition-colors flex items-center justify-center gap-2 shadow-md">
-                  <span className="icon-mask" style={{ WebkitMaskImage: 'url(/icons/send.svg)', maskImage: 'url(/icons/send.svg)' , width: '20px', height: '20px'}}></span>
-                  Send Quotation to Client
+                <button 
+                  type="button" 
+                  onClick={() => setNewItems([...newItems, { desc: '', amount: '' }])}
+                  className="text-primary text-sm font-medium hover:underline text-left mt-2 w-max"
+                >
+                  + Add Item
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Sent Quotations Table */}
-      <section className="mb-12">
-        <h3 className="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
-          <span className="icon-mask text-tertiary" style={{ WebkitMaskImage: 'url(/icons/history.svg)', maskImage: 'url(/icons/history.svg)' , width: '20px', height: '20px'}}></span>
-          Sent Quotations
-        </h3>
-        <div className="glass-card rounded-xl overflow-hidden bg-white/90 border border-[#E5E0DD] shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#F9F8F7] border-b border-outline-variant">
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Recipient / Project</th>
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Date Sent</th>
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Total Amount</th>
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-center">Status</th>
-                  <th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="font-body-md text-body-md divide-y divide-[#F0EEED]">
-                {quotations.filter(q => q.status !== 'Needs Attention').map(q => (
-                  <tr key={q.id} className="hover:bg-surface-bright transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-on-surface">{q.project}</div>
-                      <div className="text-on-surface-variant text-sm">{q.client}</div>
-                    </td>
-                    <td className="px-6 py-4 text-on-surface-variant">{q.date}</td>
-                    <td className="px-6 py-4 text-right font-medium text-on-surface">${q.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-label-md text-xs font-medium ${q.statusClass}`}>
-                        {q.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-primary hover:text-surface-tint p-1" title="View Details">
-                        <span className="icon-mask text-sm" style={{ WebkitMaskImage: 'url(/icons/visibility.svg)', maskImage: 'url(/icons/visibility.svg)' , width: '14px', height: '14px'}}></span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              <div className="flex justify-between items-center border-t border-[#E5E0DD] pt-4">
+                <span className="font-bold text-lg">Total</span>
+                <span className="font-bold text-lg text-primary">
+                  ${newItems.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded hover:bg-gray-50 text-sm font-medium">Cancel</button>
+                <button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded hover:bg-[#b55a00] text-sm font-medium">Send Quotation</button>
+              </div>
+            </form>
           </div>
         </div>
-      </section>
+      )}
     </AdminLayout>
   );
 };

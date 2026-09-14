@@ -12,26 +12,82 @@ const ClientPortalRequestAProject = () => {
     { name: 'Site_Map.pdf', size: '2.4MB', type: 'description' },
     { name: 'Reference_Image.jpg', size: '1.1MB', type: 'image' }
   ]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false); // controls the popup modal
 
   const handleRemoveFile = (index) => {
     setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e) => {
+  // Handle files selected from browser window
+  const handleFilesSelected = (selectedFiles) => {
+    const newFiles = Array.from(selectedFiles).map(f => ({
+      name: f.name,
+      size: f.size > 1024 * 1024
+        ? (f.size / (1024 * 1024)).toFixed(1) + 'MB'
+        : (f.size / 1024).toFixed(0) + 'KB',
+      type: f.name.toLowerCase().endsWith('.pdf') ? 'description' : 'image'
+    }));
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  // Open file browser and handle selection
+  const openFilePicker = () => {
+    const el = document.createElement('input');
+    el.type = 'file';
+    el.multiple = true;
+    el.accept = '.pdf,.jpg,.jpeg,.png,.dwg';
+    el.onchange = (e) => handleFilesSelected(e.target.files);
+    el.click();
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !location || !description) {
-      alert('Please fill out all required fields.');
+      setError('Please fill out all required fields.');
       return;
     }
-    alert(`Project request "${title}" submitted successfully!`);
-    setTitle('');
-    setLocation('');
-    setDescription('');
-    setBudget('');
-    setStartDate('');
+    
+    setError('');
+    setLoading(true);
+    setSuccess(false);
+
+    try {
+      const res = await fetch('http://localhost:3000/api/auth/project-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          category: serviceType,
+          title,
+          location,
+          description,
+          estimatedBudget: budget,
+          preferredStartDate: startDate
+        })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit request');
+      
+      setSuccess(true); // show the popup
+      setTitle('');
+      setLocation('');
+      setDescription('');
+      setBudget('');
+      setStartDate('');
+      setUploadedFiles([]);
+      // Keep files mock logic as requested
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
+    <>
     <ClientLayout title="Request a New Project" subtitle="Tell us about your construction needs and we'll get back to you within 48 hours.">
       <div className="glass-card rounded-xl p-6 md:p-8 soft-shadow flex flex-col gap-10 bg-white/95" style={{ border: '1px solid rgba(220,193,177,0.5)', boxShadow: '0px 4px 20px rgba(44,62,80,0.04)' }}>
         
@@ -51,6 +107,8 @@ const ClientPortalRequestAProject = () => {
             <span className="font-label-md text-label-md text-on-surface-variant">Review</span>
           </div>
         </div>
+
+        {error && <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
 
         {/* Section 1: Service Type */}
         <section className="flex flex-col gap-4">
@@ -138,7 +196,7 @@ const ClientPortalRequestAProject = () => {
                     className="w-full bg-[#F9F8F7] border border-outline-variant rounded-lg py-3 pl-8 pr-3 font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                     id="budget"
                     placeholder="0.00"
-                    type="text"
+                    type="number"
                     value={budget}
                     onChange={e => setBudget(e.target.value)}
                   />
@@ -162,7 +220,12 @@ const ClientPortalRequestAProject = () => {
           {/* Section 3: Upload Plans/Images */}
           <section className="flex flex-col gap-4">
             <h2 className="font-headline-md text-headline-md text-on-surface border-b border-outline-variant pb-2">Upload Plans &amp; Images</h2>
-            <div className="border-2 border-dashed border-outline-variant bg-[#F9F8F7] rounded-xl p-8 flex flex-col items-center justify-center gap-4 text-center cursor-pointer hover:bg-surface-container-low hover:border-outline transition-all duration-200 group">
+            <div 
+              className="border-2 border-dashed border-outline-variant bg-[#F9F8F7] rounded-xl p-8 flex flex-col items-center justify-center gap-4 text-center cursor-pointer hover:bg-surface-container-low hover:border-outline transition-all duration-200 group"
+              onClick={openFilePicker}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); handleFilesSelected(e.dataTransfer.files); }}
+            >
               <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center group-hover:bg-primary-fixed transition-colors">
                 <span className="icon-mask text-4xl text-on-surface-variant group-hover:text-primary" style={{ WebkitMaskImage: 'url(/icons/cloud_upload.svg)', maskImage: 'url(/icons/cloud_upload.svg)' , width: '36px', height: '36px'}}></span>
               </div>
@@ -192,14 +255,43 @@ const ClientPortalRequestAProject = () => {
             <button className="w-full md:w-auto px-6 py-3 rounded-lg border border-outline text-on-surface font-label-md text-label-md font-semibold hover:bg-surface-container-low transition-colors duration-200" type="button">
               Save as Draft
             </button>
-            <button className="w-full md:w-auto px-8 py-3 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-surface-tint shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center gap-2" type="submit">
-              Submit Request
+            <button disabled={loading} className="w-full md:w-auto px-8 py-3 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-surface-tint shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50" type="submit">
+              {loading ? 'Submitting...' : 'Submit Request'}
               <span className="icon-mask text-[18px]" style={{ WebkitMaskImage: 'url(/icons/arrow_forward.svg)', maskImage: 'url(/icons/arrow_forward.svg)' , width: '18px', height: '18px'}}></span>
             </button>
           </div>
         </form>
       </div>
     </ClientLayout>
+
+    {success && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4">
+        <div className="bg-white rounded-2xl p-10 max-w-md w-full shadow-2xl flex flex-col items-center gap-6 text-center border border-outline-variant">
+          <div className="w-20 h-20 rounded-full bg-[#e6f4ea] flex items-center justify-center">
+            <span className="text-[#137333] text-5xl">&#10003;</span>
+          </div>
+          <div>
+            <h3 className="font-headline-md text-2xl font-bold text-on-surface mb-2">Request Submitted!</h3>
+            <p className="text-on-surface-variant font-body-md">Your project request has been received. Our team will review it and get back to you within <strong>48 hours</strong>.</p>
+          </div>
+          <div className="w-full flex flex-col gap-3">
+            <button
+              onClick={() => setSuccess(false)}
+              className="w-full py-3 bg-primary text-on-primary rounded-lg font-label-md font-semibold hover:bg-[#b55a00] transition-colors"
+            >
+              OK, Got It
+            </button>
+            <button
+              onClick={() => { setSuccess(false); window.location.href = '/client/my-projects'; }}
+              className="w-full py-3 border border-outline text-on-surface rounded-lg font-label-md hover:bg-surface-container-low transition-colors"
+            >
+              View My Projects
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
